@@ -14,3 +14,7 @@ out/
 src/
 tsconfig.json
 webpack.config.js
+tools/**
+.tools-out/**
+bin/**
+docs/**

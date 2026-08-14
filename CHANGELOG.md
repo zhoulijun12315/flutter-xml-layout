@@ -1,31 +1,20 @@
+# Change Log
 
-## [0.0.27] - 2020-10-4
-Breaking changes:
-- rename the custom property `<animation>` to `<apply-animation>`.
+## [0.1.0] - 2026-08-14
 
-## [0.0.25] - 2020-06-18
-- Add item data type for builder, itemBuilder, childBuilder and repeat.
+First public release of the maintained fork.
 
-## [0.0.18] - 2020-06-18
-New features:
-- `<param>` now has anew `superParamName` attribute which will pass the parameter to super class constructor.
-Breaking changes:
-- `<if>` will now return a null (instead of Container(width: 0, height: 0)) in the else statement, if there is no `<else>` provided.
-Fixes:
-- Fix goto definition bug in the new vscode release.
-
-## [0.0.10] - 2019-08-15
-Breaking changes:
-  - :formControl now accept both a variable and a string value, so current usge will break and all you need to do is to convert this :formControl="MyControlName" to :formControl="'MyControlName'".
-
-## [0.0.8] - 2019-07-27
-- Added language features:
-  - Code completion
-  - Hover information
-  - Go to definition
-
-## [0.0.4] - 2019-07-17
-- Update :submitForm
-
-## [0.0.1] - 2019-07-16
-- Initial release
+- Headless generator CLI (`fxml generate/watch`) and MCP server, reusing the
+  same core as the extension (AI/CI callable).
+- Null-safe, lint-clean generated code:
+  - single `headers.dart` import,
+  - `context.watch` instead of `Provider.of`,
+  - explicit null handling (`??` / `!= null` / `== null`) respected instead of
+    being overridden by the pipe null guard,
+  - `:watch` multi-stream wrapper,
+  - warning-free generated files (curated `ignore_for_file` header).
+- Generator bug fixes: grouped multi-pipe placeholders, per-group null guards,
+  duplicate-builder merging with different guards, itemBuilder null fallback,
+  animation getters, consumer child nullability, i18n null safety.
+- Regression tool: manifest-based diff (`tools/diff-generations.js`).
+- Distinct branding (name, logo) from the original extension.

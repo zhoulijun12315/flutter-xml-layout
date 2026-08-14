@@ -42,6 +42,9 @@ export class WrapperAnimationHandler extends WrapperPropertyHandler {
                 value:`GlobalKey<AnimationBuilderState>()`
             });
             vars.push({
+                // Non-null getter to match the original library: controllers
+                // commonly use `name.controller!.forward()`. The underlying
+                // state guards against using a disposed controller.
                 name:`AnimationBuilderStateMixin get ${animationControllerName} => _${animationControllerName}Key.currentState as AnimationBuilderStateMixin;`,
                 type: '',
                 value:``
@@ -69,7 +72,7 @@ export class WrapperAnimationHandler extends WrapperPropertyHandler {
             value: '',
             extraData: {
                 parameters: [
-                    { name: 'animations', type: 'Map<String, Animation>' },
+                    { name: 'animations', type: 'Map<String, Animation<dynamic>>' },
                     { name: `child`, type: 'Widget?' }
                 ],
                 addReturn: true

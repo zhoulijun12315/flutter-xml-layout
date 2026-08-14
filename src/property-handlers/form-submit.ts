@@ -23,7 +23,7 @@ export class FormSubmitHandler extends CustomPropertyHandler {
         const resolveResult = disableWidget.resolve(
             element, {
                 name: ':disable',
-                value: `!(${formGroupName}.submitEnabledStream | stream:${formGroupName}.submitEnabled)`
+                value: `!((${formGroupName}.submitEnabledStream | stream:${formGroupName}.submitEnabled) == true)`
             },
             widget
         );

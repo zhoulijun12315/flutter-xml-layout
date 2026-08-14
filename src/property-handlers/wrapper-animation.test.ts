@@ -20,9 +20,9 @@ suite("Wrapper Animation Property Tests", function () {
             tweenMap: {
               "offset": Tween<Offset>(begin: Offset(-10, 0), end: Offset(0, 0))
             },
-            builderMap: (Map<String, Animation> animations, Widget child) {
+            builderMap: (Map<String, Animation<dynamic>> animations, Widget? child) {
               return Transform.translate(
-                offset: animations["offset"].value,
+                offset: animations["offset"]!.value,
                 child: Container(
                   color: Colors.red,
                   height: 200,
@@ -58,11 +58,11 @@ suite("Wrapper Animation Property Tests", function () {
               "width": Tween<int>(begin: 100, end: 200),
               "color": ColorTween(begin: Colors.transparent, end: Colors.white)
             },
-            builderMap: (Map<String, Animation> animations, Widget child) {
+            builderMap: (Map<String, Animation<dynamic>> animations, Widget? child) {
               return Container(
-                color: animations["color"].value,
-                height: animations["height"].value,
-                width: animations["width"].value,
+                color: animations["color"]!.value,
+                height: animations["height"]!.value,
+                width: animations["width"]!.value,
               );
             },
           )
@@ -92,11 +92,11 @@ suite("Wrapper Animation Property Tests", function () {
               "width": Tween<double>(begin: 100, end: 200),
               "color": ColorTween(begin: Colors.blue, end: Colors.red)
             },
-            builderMap: (Map<String, Animation> animations, Widget child) {
+            builderMap: (Map<String, Animation<dynamic>> animations, Widget? child) {
               return Container(
-                color: animations["color"].value,
-                height: animations["height"].value,
-                width: animations["width"].value,
+                color: animations["color"]!.value,
+                height: animations["height"]!.value,
+                width: animations["width"]!.value,
               );
             },
           )

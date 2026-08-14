@@ -14,7 +14,8 @@ export function removeDuplicatedBuilders(widget: WidgetModel, parent: WidgetMode
         if (builderValue in buildersCache && buildersCache[builderValue] && 
             buildersCache[builderValue].type === widget.type && 
             buildersCache[builderValue].widget.id !== widget.id &&
-            isParentOf(buildersCache[builderValue].widget, widget)) {
+            isParentOf(buildersCache[builderValue].widget, widget) &&
+            buildersCache[builderValue].widget.addNullChecking === widget.addNullChecking) {
             detach = true;
         }
         else {

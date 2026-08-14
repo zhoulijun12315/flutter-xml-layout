@@ -22,6 +22,11 @@ export interface ConfigValueTransformer {
 
 export interface Config {
     /**
+     * Whether to run `dart format` on generated files after saving (defaults to true).
+     */
+    formatOnSave?: boolean;
+
+    /**
      * `[ { widget: "Container", properties: [ { handler: ":width", targetProperty: "width" } ] } ]`
      */
     wrappers?: ConfigWrapper[];

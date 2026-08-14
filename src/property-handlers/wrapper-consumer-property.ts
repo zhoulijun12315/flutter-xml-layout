@@ -27,7 +27,7 @@ export class WrapperConsumerPropertyHandler extends WrapperPropertyHandler {
                         parameters: [
                             { name: 'context', type: 'BuildContext' },
                             { name: providerInstanceName, type: providerTypeName },
-                            { name: 'child', type: 'Widget' }
+                            { name: 'child', type: 'Widget?' }
                         ],
                         addReturn: true
                     }

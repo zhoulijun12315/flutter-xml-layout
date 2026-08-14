@@ -9,6 +9,7 @@ import { BuilderHandler } from "./property-handlers/builder";
 import { RepeatHandler } from "./property-handlers/repeat";
 import { DecorationValueTransformer } from "./value-transformers/decoration";
 import { WrapperStreamPropertyHandler } from "./property-handlers/wrapper-stream-property";
+import { WrapperWatchPropertyHandler } from "./property-handlers/wrapper-watch-property";
 import { WrapperDisablePropertyHandler } from "./property-handlers/wrapper-disable-property";
 import { WrapperAnimationHandler } from "./property-handlers/wrapper-animation";
 import { WrapperPropertyHandler } from "./property-handlers/wrapper-property";
@@ -73,6 +74,7 @@ export function registerBuiltInPropertyHandlers(provider: PropertyHandlerProvide
     //
     provider.register(':consumer', new WrapperConsumerPropertyHandler(propertyResolver));
     provider.register(':stream', new WrapperStreamPropertyHandler(propertyResolver));
+    provider.register(':watch', new WrapperWatchPropertyHandler(propertyResolver));
     provider.register(':disable', new WrapperDisablePropertyHandler(propertyResolver));
     provider.register('apply-animation', new WrapperAnimationHandler(propertyResolver));
 

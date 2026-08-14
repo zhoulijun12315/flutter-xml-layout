@@ -17,6 +17,9 @@
 	},
 	"exclude": [
 		"node_modules",
-		".vscode-test"
+		".vscode-test",
+		"tools",
+		"bin",
+		".tools-out"
 	]
 }

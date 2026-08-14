@@ -17,17 +17,17 @@ suite("Switch Tests", function () {
               component.selectedTab,
               () => Container(width: 0, height: 0),
               [
-                new SwitchCase(0, 
+                SwitchCase(0, 
                   () => Text(
                     'one',
                   )
                 ),
-                new SwitchCase(1, 
+                SwitchCase(1, 
                   () => Text(
                     'two',
                   )
                 ),
-                new SwitchCase(2, 
+                SwitchCase(2, 
                   () => Text(
                     'three',
                   )
@@ -58,17 +58,17 @@ suite("Switch Tests", function () {
               component.selectedTab,
               () => Container(width: 0, height: 0),
               [
-                new SwitchCase(0, 
+                SwitchCase(0, 
                   () => Text(
                     'one',
                   )
                 ),
-                new SwitchCase(1, 
+                SwitchCase(1, 
                   () => Text(
                     'two',
                   )
                 ),
-                new SwitchCase(2, 
+                SwitchCase(2, 
                   () => Text(
                     'three',
                   )
@@ -100,17 +100,17 @@ suite("Switch Tests", function () {
               component.selectedTab,
               () => Container(width: 0, height: 0),
               [
-                new SwitchCase(0, 
+                SwitchCase(0, 
                   () => Text(
                     'one',
                   )
                 ),
-                new SwitchCase(1, 
+                SwitchCase(1, 
                   () => Text(
                     'two',
                   )
                 ),
-                new SwitchCase(2, 
+                SwitchCase(2, 
                   () => Text(
                     'three',
                   )
@@ -148,17 +148,17 @@ suite("Switch Tests", function () {
                 componentSelectedTabValue,
                 () => Container(width: 0, height: 0),
                 [
-                  new SwitchCase(0, 
+                  SwitchCase(0, 
                     () => Text(
                       'one',
                     )
                   ),
-                  new SwitchCase(1, 
+                  SwitchCase(1, 
                     () => Text(
                       'two',
                     )
                   ),
-                  new SwitchCase(2, 
+                  SwitchCase(2, 
                     () => Text(
                       'three',
                     )
@@ -191,17 +191,17 @@ suite("Switch Tests", function () {
               component.selectedTab,
               () => Container(width: 0, height: 0),
               [
-                new SwitchCase(0, 
+                SwitchCase(0, 
                   () => Text(
                     'one',
                   )
                 ),
-                new SwitchCase(1, 
+                SwitchCase(1, 
                   () => Text(
                     'two',
                   )
                 ),
-                new SwitchCase(2, 
+                SwitchCase(2, 
                   () => Text(
                     'three',
                   )
@@ -240,17 +240,17 @@ suite("Switch Tests", function () {
                 componentSelectedTabValue,
                 () => Container(width: 0, height: 0),
                 [
-                  new SwitchCase(0, 
+                  SwitchCase(0, 
                     () => Text(
                       'one',
                     )
                   ),
-                  new SwitchCase(1, 
+                  SwitchCase(1, 
                     () => Text(
                       'two',
                     )
                   ),
-                  new SwitchCase(2, 
+                  SwitchCase(2, 
                     () => Text(
                       'three',
                     )
@@ -282,17 +282,17 @@ suite("Switch Tests", function () {
               component.selectedTab,
               () => Container(width: 0, height: 0),
               [
-                new SwitchCase(0, 
+                SwitchCase(0, 
                   () => Text(
                     'one',
                   )
                 ),
-                new SwitchCase(1, 
+                SwitchCase(1, 
                   () => Text(
                     'two',
                   )
                 ),
-                new SwitchCase(2, 
+                SwitchCase(2, 
                   () => Text(
                     'three',
                   )

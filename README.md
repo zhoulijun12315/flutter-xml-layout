@@ -1,4 +1,99 @@
 
+> 🚀 **Live demo:** try the XML Layout web demo —
+> [open the showcase](https://zhoulijun12315.github.io/flutter-xml-layout-helpers/).
+> It is a full Flutter app written entirely in XML.
+
+## Headless CLI (for AI & CI)
+
+The same generator core that powers the VS Code extension can be run from the
+command line, so AI agents and CI pipelines can generate `.xml.dart` and
+`.ctrl.dart` files without opening an editor.
+
+```sh
+npm install
+npm link                                    # installs the `fxml` command (one-time)
+
+# Generate all XML files under lib/ (and i18n JSON)
+fxml generate <projectRoot> [--config <path>] [--format]
+
+# Generate a single file
+fxml generate <projectRoot> --file lib/pages/home/home.xml
+
+# Watch for changes and regenerate automatically
+fxml watch <projectRoot>
+
+# Machine-readable output for AI/CI
+fxml generate <projectRoot> --json
+```
+
+Without `npm link` you can also run it directly:
+`node .tools-out/tools/generate.js generate <projectRoot>`.
+
+**Regression checking after generator upgrades.** Generated files are often
+gitignored, so a small manifest is used as a committed baseline:
+
+```sh
+node .tools-out/tools/diff-generations.js <projectRoot>           # compare
+node .tools-out/tools/diff-generations.js <projectRoot> --write   # regenerate changed files
+node .tools-out/tools/diff-generations.js <projectRoot> --update  # accept new baseline
+```
+
+The tool hashes the generated output for every XML file into
+`.fxml-gen-manifest.json` (commit this file) and reports which files changed,
+with semantic markers (widget type, stream count, null guards) for review.
+
+Behavior:
+
+- Scans `<projectRoot>/lib/**/*.xml` and writes `<name>.xml.dart` next to each
+  file; creates `<name>.ctrl.dart` only when the widget declares a controller
+  and the file does not already exist (user code is never overwritten).
+- Regenerates `lib/i18n/*.json` into `lib/i18n/gen/localizations.dart` and
+  `delegate.dart`.
+- Reads `fxmllayout.json` for custom wrappers / value transformers.
+- `--format` runs `dart format` on generated files.
+- Files that did not change are reported as `(unchanged)` and not rewritten.
+- Errors include `line:column` when available.
+- Exit codes: `0` success, `1` generation errors, `2` usage errors.
+
+`fxmllayout.json` also accepts `formatOnSave: false` to disable the automatic
+`dart format` that the VS Code extension runs on generated files after saving
+(enabled by default).
+
+## MCP server (AI tools)
+
+The generator is also exposed as an [MCP](https://modelcontextprotocol.io)
+server, so AI agents can call it as a tool — no editor required.
+
+```sh
+npm install
+npm link
+xml-layout-mcp                        # stdio JSON-RPC server
+```
+
+Available tools:
+
+- `generate_xml_layout(rootDir, configPath?, format?)` — generate `.xml.dart`,
+  `.ctrl.dart` and i18n files; returns a JSON summary of generated files and
+  errors.
+- `list_xml_layout_files(rootDir)` — list the `.xml` files that will be
+  processed.
+
+Register it with your MCP client, for example:
+
+```json
+{
+  "mcpServers": {
+    "xml-layout": {
+      "command": "node",
+      "args": ["/absolute/path/to/flutter-xml-layout/bin/xml-layout-mcp.js"]
+    }
+  }
+}
+```
+
+An agent can then say "generate the XML layouts for this project" and the tool
+does the rest.
+
 Imagine that you can do this :
 ```XML
 <Container width="50 | widthPercent"
@@ -61,8 +156,8 @@ Extension features:
 1. Install the extension from [vscode marketplace](https://marketplace.visualstudio.com/items?itemName=WaseemDev.flutter-xml-layout)
 2. Create a new flutter project
 3. Install prerequisites packages:
-    * [flutter_xmllayout_helpers](https://pub.dartlang.org/packages/flutter_xmllayout_helpers)
-    * [provider](https://pub.dartlang.org/packages/provider)
+    * [flutter_xml_layout_helpers](https://github.com/zhoulijun12315/flutter-xml-layout-helpers)
+    * [provider](https://pub.dev/packages/provider) `^6.0.0`
     * flutter_localizations
 ```yaml
 dependencies:
@@ -70,13 +165,17 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  provider: ^3.0.0+1
-  flutter_xmllayout_helpers: ^0.0.9
+  provider: ^6.0.0
+  flutter_xml_layout_helpers:
+    git:
+      url: https://github.com/zhoulijun12315/flutter-xml-layout-helpers.git
 ```
+> Once `flutter_xml_layout_helpers` is published to pub.dev, replace the git
+> dependency with `flutter_xml_layout_helpers: ^0.1.0`.
 4. Apply one of the following steps:
     * Clear all `main.dart` content then use `fxml_app` snippet to create the app.
     * Modify `main.dart` to use `MultiProvider` from `provider` package:
-        - Register `PipeProvider` (from `flutter_xmllayout_helpers` package) as a provider.
+        - Register `PipeProvider` (from `flutter_xml_layout_helpers` package) as a provider.
         - Register `RouteObserver<Route>` as a provider (only if you want to use RouteAware events in your widgets' controllers).
 
 ## Localization:
@@ -165,4 +264,3 @@ class HomeController extends HomeControllerBase {
 ### 7. [Adding mixin to widget's states](./docs/mixins.md)
 ### 8. [Localization](./docs/localization.md)
 ### 9. [Developer customization](./docs/customization.md)
-

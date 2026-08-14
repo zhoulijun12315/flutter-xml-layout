@@ -13,13 +13,23 @@ export class PipeValueResolver {
         let extraData: ExtraDataModel | null = null;
 
         value = this.prepareValue(value);
+        // When the expression already handles null explicitly (?? / != null /
+        // == null), skip the generated null guard: the user's own handling is
+        // meaningful and the guard would otherwise hide the widget (and make
+        // their null handling dead code).
+        const addNullChecking = !this.hasExplicitNullHandling(value);
         const pipesResult = this.resolvePipes(value);
         const groupedPipesValues: any = {};
 
         if (pipesResult.groupedPipes) {
             // apply grouped pipes (all pipes that are between braces)
             pipesResult.groupedPipes.forEach(groupedPipe => {
-                ({ value, wrapperWidget } = this.applyPipes(value, groupedPipe, wrapperWidget, widget, name, addReturn));
+                // Each group decides its own guard: a pipe whose placeholder is
+                // directly used with ?? / != null / == null handles null
+                // itself and skips the guard; other pipes keep it (so e.g.
+                // `(a | behavior).length` stays null-safe).
+                const groupAddNullChecking = groupedPipe.nullHandled ? false : true;
+                ({ value, wrapperWidget } = this.applyPipes(value, groupedPipe, wrapperWidget, widget, name, addReturn, groupAddNullChecking));
                 const pipesNames = makePipeUniqueName(groupedPipe);
                 // store pipe actual values
                 groupedPipesValues[pipesNames] = value;
@@ -27,7 +37,7 @@ export class PipeValueResolver {
         }
 
         // apply not-grouped pipes
-        ({ value, wrapperWidget } = this.applyPipes(value, pipesResult, wrapperWidget, widget, name, addReturn));
+        ({ value, wrapperWidget } = this.applyPipes(value, pipesResult, wrapperWidget, widget, name, addReturn, addNullChecking));
         
         // replace pipe values' placeholders with their actual values
         if (pipesResult.groupedPipes) {
@@ -44,6 +54,18 @@ export class PipeValueResolver {
         }
 
         return { wrapperWidget, extraData, value };
+    }
+
+    private hasExplicitNullHandling(value: string): boolean {
+        return /\?\?/.test(value) || /!= null/.test(value) || /== null/.test(value);
+    }
+
+    private isGroupNullHandled(input: string, start: number, end: number): boolean {
+        const after = input.substring(end, Math.min(input.length, end + 12));
+        // Only operators that directly follow the group count. A `??` further
+        // left belongs to another subexpression (e.g.
+        // `ctrl.a?.b ?? ((x | behavior) ? ... : ...)`).
+        return /\?\?/.test(after) || /!= null/.test(after) || /== null/.test(after);
     }
 
     private isBoundValue(value: any): boolean {
@@ -105,7 +127,7 @@ export class PipeValueResolver {
                     extraData: {
                         parameters: [
                             { name: 'context', type: 'BuildContext' },
-                            { name: `${snapshotVarName}`, type: 'dynamic' }
+                            { name: `${snapshotVarName}`, type: '' }
                         ],
                         logic: [
                             ...(addLocalVar ? [`final ${resultVarName} = ${snapshotVarName}.data;`] : []),
@@ -125,6 +147,10 @@ export class PipeValueResolver {
             onResolved: [],
             isCustom: true
         };
+        // Remember whether this builder null-guards its value, so duplicate
+        // builder removal does not merge a guarded usage with an unguarded one
+        // (e.g. `:if="(x | behavior) != null"` with a ternary `(x | behavior)`).
+        (streamBuilderWidget as any).addNullChecking = addNullChecking;
 
         // set property value from local variable
         value = `${resultVarName}`;
@@ -141,7 +167,8 @@ export class PipeValueResolver {
             wrapperWidget: WidgetModel | null,
             widget: WidgetModel,
             name: string,
-            addReturn: boolean): { value: string, wrapperWidget: WidgetModel | null } {
+            addReturn: boolean,
+            addNullChecking = true): { value: string, wrapperWidget: WidgetModel | null } {
         value = pipesResult.value;
         let remainingPipes = pipesResult.pipes;
 
@@ -157,27 +184,30 @@ export class PipeValueResolver {
         if (hasStream) {
             const streamPipe = pipesResult.pipes[streamPipIndex];
             const pipeValue = this.resolvePipeValue(pipesResult.value, pipesResult.pipes.slice(0, streamPipIndex).reverse());
-            ({ wrapperWidget, value } = this.createStreamBuilder(pipeValue, streamPipe.args[0], streamPipe.args[1], wrapperWidget || widget, name, addReturn, true, true));
+            ({ wrapperWidget, value } = this.createStreamBuilder(pipeValue, streamPipe.args[0], streamPipe.args[1], wrapperWidget || widget, name, addReturn, addNullChecking, true));
             // remove 'stream' from pipes
             remainingPipes = pipesResult.pipes.slice(streamPipIndex + 1);
         }
         else if (hasStreamWithInitialValue) {
             const streamWithInitialValuePipe = pipesResult.pipes[streamWithInitialValuePipIndex];
             const pipeValue = this.resolvePipeValue(pipesResult.value, pipesResult.pipes.slice(0, streamWithInitialValuePipIndex).reverse());
-            ({ wrapperWidget, value } = this.createStreamBuilderWithInitialValue(pipeValue, streamWithInitialValuePipe.args[0], wrapperWidget || widget, name, addReturn, true, true));
+            ({ wrapperWidget, value } = this.createStreamBuilderWithInitialValue(pipeValue, streamWithInitialValuePipe.args[0], wrapperWidget || widget, name, addReturn, addNullChecking, true));
             // remove 'stream' from pipes
             remainingPipes = pipesResult.pipes.slice(streamWithInitialValuePipIndex + 1);
         }
         else if (hasFuture) {
             const futurePipe = pipesResult.pipes[futurePipIndex];
             const pipeValue = this.resolvePipeValue(pipesResult.value, pipesResult.pipes.slice(0, futurePipIndex).reverse());
-            ({ wrapperWidget, value } = this.createFutureBuilder(pipeValue, futurePipe.args[0], futurePipe.args[1], wrapperWidget || widget, name, addReturn, true, true));
+            ({ wrapperWidget, value } = this.createFutureBuilder(pipeValue, futurePipe.args[0], futurePipe.args[1], wrapperWidget || widget, name, addReturn, addNullChecking, true));
             // remove 'future' from pipes
             remainingPipes = pipesResult.pipes.slice(futurePipIndex + 1);
         }
 
         // apply remaining pipes to the 'value'
-        value = this.resolvePipeValue(value, remainingPipes.reverse());
+        // NOTE: copy the array before reversing — `remainingPipes` may point
+        // at the caller's pipes array and reverse() mutates in place, which
+        // broke grouped-pipe placeholder replacement for multi-pipe groups.
+        value = this.resolvePipeValue(value, [...remainingPipes].reverse());
 
         return { value, wrapperWidget };
     }
@@ -189,7 +219,7 @@ export class PipeValueResolver {
 
         const pipe = pipes[index];
         value = (pipes.length > index + 1 ? this.resolvePipeValue(value, pipes, index + 1) : value).trim();
-        return `_pipeProvider.transform(context, "${pipe.name}", ${value}, [${pipe.args.join(', ')}])`;
+        return `pipeProvider.transform(context, "${pipe.name}", ${value}, [${pipe.args.join(', ')}])`;
     }
 
     private resolvePipes(value: string): { value: string, pipes: { name: string, args: any[] }[], groupedPipes: any[] } {
@@ -211,7 +241,7 @@ export class PipeValueResolver {
             if (group) {
                 const result = this.extractPipes(group);
                 if (result.pipes.length) {
-                    groupedPipes.push(result);
+                    groupedPipes.push({ ...result, nullHandled: this.isGroupNullHandled(input, start.index, index) });
                     const pipesNames = makePipeUniqueName(result);
                     const placeholder = groupStart + '_placeholder_for_' + pipesNames + '_pipes' + groupEnd;
                     const originalLength = input.length;

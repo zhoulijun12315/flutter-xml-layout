@@ -78,7 +78,7 @@ suite("Child Wrapper Properties Tests", function () {
         const expected = `
         RaisedButton(
           child: Text(
-            _pipeProvider.transform(context, "translate", 'hello', []),
+            pipeProvider.transform(context, "translate", 'hello', []),
           ),
         )`;
 

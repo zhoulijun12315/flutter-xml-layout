@@ -7,7 +7,7 @@ suite("Pipes Tests", function () {
 
         const expected = `
         Text(
-            _pipeProvider.transform(context, "translate", text, []),
+            pipeProvider.transform(context, "translate", text, []),
           )
 `;
 
@@ -20,7 +20,7 @@ suite("Pipes Tests", function () {
 
         const expected = `
         Text(
-            _pipeProvider.transform(context, "afterTranslate", _pipeProvider.transform(context, "translate", _pipeProvider.transform(context, "beforeTranslate", text, []), []), []),
+            pipeProvider.transform(context, "afterTranslate", pipeProvider.transform(context, "translate", pipeProvider.transform(context, "beforeTranslate", text, []), []), []),
         )
 `;
 
@@ -33,7 +33,7 @@ suite("Pipes Tests", function () {
 
         const expected = `
         Text(
-            (_pipeProvider.transform(context, "translate", firstText, [])) + ' : ' + (_pipeProvider.transform(context, "somePipe", secondText, [])),
+            (pipeProvider.transform(context, "translate", firstText, [])) + ' : ' + (pipeProvider.transform(context, "somePipe", secondText, [])),
         )
 `;
 
@@ -93,14 +93,14 @@ suite("Pipes Tests", function () {
         const expected = `
         StreamBuilder(
           initialData: null,
-          stream: _pipeProvider.transform(context, "beforeStream", textStream, []),
+          stream: pipeProvider.transform(context, "beforeStream", textStream, []),
             builder: (BuildContext context, pipeProviderTransformContextBeforeStreamTextStreamSnapshot) {
               final pipeProviderTransformContextBeforeStreamTextStreamValue = pipeProviderTransformContextBeforeStreamTextStreamSnapshot.data;
               if (pipeProviderTransformContextBeforeStreamTextStreamValue == null) {
                 return Container(width: 0, height: 0);
               }
               return Text(
-                _pipeProvider.transform(context, "afterStream", pipeProviderTransformContextBeforeStreamTextStreamValue, []),
+                pipeProvider.transform(context, "afterStream", pipeProviderTransformContextBeforeStreamTextStreamValue, []),
               );
             },
           )
@@ -123,7 +123,7 @@ suite("Pipes Tests", function () {
                 return Container(width: 0, height: 0);
               }
               return Text(
-                (firstTextStreamValue) + ':' + (_pipeProvider.transform(context, "translate", secondText, [])),
+                (firstTextStreamValue) + ':' + (pipeProvider.transform(context, "translate", secondText, [])),
               );
             },
           )
@@ -266,13 +266,13 @@ suite("Pipes Tests", function () {
     Column(
       children: [
         Text(
-          '\${_pipeProvider.transform(context, "translate", {someText, [])}',
+          '\${pipeProvider.transform(context, "translate", {someText, [])}',
         ),
         Text(
-          "\${(_pipeProvider.transform(context, "translate", someText, []))}",
+          "\${(pipeProvider.transform(context, "translate", someText, []))}",
         ),
         Text(
-          '\${(_pipeProvider.transform(context, "translate", someText, []))}',
+          '\${(pipeProvider.transform(context, "translate", someText, []))}',
         ),
       ],
     )
@@ -423,6 +423,144 @@ suite("Pipes Tests", function () {
               );
             },
           ),
+        )
+`;
+
+        const generated = generateWidget(xml);
+        assertEqual(generated, expected);
+    });
+
+    test("grouped multi-pipe chain inside an expression", function() {
+        const xml = `
+<Text text="'chained → ' + ('hello' | translate | uppercase)" />
+`;
+
+        const expected = `
+        Text(
+          'chained → ' + (pipeProvider.transform(context, "uppercase", pipeProvider.transform(context, "translate", 'hello', []), [])),
+        )
+`;
+
+        const generated = generateWidget(xml);
+        assertEqual(generated, expected);
+    });
+
+    test("pipe with explicit ?? fallback skips the null guard", function() {
+        const xml = `<Text text="(ctrl.timeRemainingText | behavior) ?? ''" />`;
+
+        const expected = `
+        StreamBuilder(
+          initialData: ctrl.timeRemainingText.value,
+          stream: ctrl.timeRemainingText,
+          builder: (BuildContext context, ctrlTimeRemainingTextSnapshot) {
+            final ctrlTimeRemainingTextValue = ctrlTimeRemainingTextSnapshot.data;
+            return Text(
+              (ctrlTimeRemainingTextValue) ?? '',
+            );
+          },
+        )
+`;
+
+        const generated = generateWidget(xml);
+        assertEqual(generated, expected);
+    });
+
+    test("null guard is decided per pipe group, not globally", function() {
+        const xml = `
+<Column :if="(ctrl.dividends | behavior).length != 0 && (ctrl.selectedGroup | behavior) != null">
+  <Text text="'x'" />
+</Column>
+`;
+
+        const expected = `
+        StreamBuilder(
+          initialData: ctrl.selectedGroup.value,
+          stream: ctrl.selectedGroup,
+          builder: (BuildContext context, ctrlSelectedGroupSnapshot) {
+            final ctrlSelectedGroupValue = ctrlSelectedGroupSnapshot.data;
+            return StreamBuilder(
+              initialData: ctrl.dividends.value,
+              stream: ctrl.dividends,
+              builder: (BuildContext context, ctrlDividendsSnapshot) {
+                final ctrlDividendsValue = ctrlDividendsSnapshot.data;
+                if (ctrlDividendsValue == null) {
+                  return Container(width: 0, height: 0);
+                }
+                return WidgetHelpers.ifTrue((ctrlDividendsValue).length != 0 && (ctrlSelectedGroupValue) != null,
+                  () => Column(
+                    children: [
+                      Text(
+                        'x',
+                      ),
+                    ],
+                  ),
+                  () => Container(width: 0, height: 0)
+                );
+              },
+            );
+          },
+        )
+`;
+
+        const generated = generateWidget(xml);
+        assertEqual(generated, expected);
+    });
+
+    test("pipe inside a ternary keeps the null guard", function() {
+        const xml = `<Text text="(ctrl.needLoading | behavior) ? 'loading' : 'done'" />`;
+
+        const expected = `
+        StreamBuilder(
+          initialData: ctrl.needLoading.value,
+          stream: ctrl.needLoading,
+          builder: (BuildContext context, ctrlNeedLoadingSnapshot) {
+            final ctrlNeedLoadingValue = ctrlNeedLoadingSnapshot.data;
+            if (ctrlNeedLoadingValue == null) {
+              return Container(width: 0, height: 0);
+            }
+            return Text(
+              (ctrlNeedLoadingValue) ? 'loading' : 'done',
+            );
+          },
+        )
+`;
+
+        const generated = generateWidget(xml);
+        assertEqual(generated, expected);
+    });
+
+    test("same stream with different null handling keeps separate builders", function() {
+        const xml = `
+<Container :if="(ctrl.x | behavior) != null">
+  <Text text="(ctrl.x | behavior) ? 'a' : 'b'" />
+</Container>
+`;
+
+        const expected = `
+        StreamBuilder(
+          initialData: ctrl.x.value,
+          stream: ctrl.x,
+          builder: (BuildContext context, ctrlXSnapshot) {
+            final ctrlXValue = ctrlXSnapshot.data;
+            return WidgetHelpers.ifTrue((ctrlXValue) != null,
+              () => Container(
+                child: StreamBuilder(
+                  initialData: ctrl.x.value,
+                  stream: ctrl.x,
+                  builder: (BuildContext context, ctrlXSnapshot) {
+                    final ctrlXValue = ctrlXSnapshot.data;
+                    if (ctrlXValue == null) {
+                      return Container(width: 0, height: 0);
+                    }
+                    return Text(
+                      (ctrlXValue) ? 'a' : 'b',
+                    );
+                  },
+                ),
+              ),
+              () => Container(width: 0, height: 0)
+            );
+          },
         )
 `;
 

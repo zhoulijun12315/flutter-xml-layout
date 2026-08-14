@@ -96,7 +96,7 @@ suite("Wrapper Properties Tests", function () {
         
         const expected = `
         Opacity(
-          opacity: _pipeProvider.transform(context, "somePipe", value, []),
+          opacity: pipeProvider.transform(context, "somePipe", value, []),
           child: Text(
     
           ),
@@ -228,8 +228,8 @@ suite("Wrapper Properties Tests", function () {
         
         const expected = `
         SizedBox(
-          height: _pipeProvider.transform(context, "translate", 'test2', []),
-          width: _pipeProvider.transform(context, "translate", 'test1', []),
+          height: pipeProvider.transform(context, "translate", 'test2', []),
+          width: pipeProvider.transform(context, "translate", 'test1', []),
           child: Text(
             'Hello',
           ),

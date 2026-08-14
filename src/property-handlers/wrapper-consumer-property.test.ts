@@ -11,7 +11,7 @@ suite("Wrapper Consumer Property Tests", function () {
         
         const expected = `
         Consumer<MyProvider>(
-          builder: (BuildContext context, MyProvider myProvider, Widget child) {
+          builder: (BuildContext context, MyProvider myProvider, Widget? child) {
             return Column(
               children: [
                 Text(
@@ -36,7 +36,7 @@ suite("Wrapper Consumer Property Tests", function () {
         
         const expected = `
         Consumer<MyProvider>(
-          builder: (BuildContext context, MyProvider myProvider, Widget child) {
+          builder: (BuildContext context, MyProvider myProvider, Widget? child) {
             return Padding(
               padding: const EdgeInsets.all(5),
               child: Column(

@@ -12,7 +12,7 @@ suite("ItemBuilder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (BuildContext context, int index) {
-            final int item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final int item = component.items[index];
             return Text(
               item.title,
             );
@@ -35,7 +35,7 @@ suite("ItemBuilder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (BuildContext context, int myIndex) {
-            final ItemModel item = component.items == null || component.items.length <= myIndex || component.items.length == 0 ? null : component.items[myIndex];
+            final ItemModel item = component.items[myIndex];
             return Text(
               item.title,
             );
@@ -65,7 +65,7 @@ suite("ItemBuilder Tests", function () {
             }
             return ListView.builder(
               itemBuilder: (BuildContext context, int index) {
-                final ItemModel item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final ItemModel item = componentItemsValue[index];
                 return Text(
                   item.title,
                 );
@@ -98,7 +98,7 @@ suite("ItemBuilder Tests", function () {
             return ListView.builder(
               itemCount: (componentItemsValue).length,
               itemBuilder: (BuildContext context, int index) {
-                final ItemModel item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final ItemModel item = componentItemsValue[index];
                 return Text(
                   item.title,
                 );
@@ -124,7 +124,7 @@ suite("ItemBuilder Tests", function () {
           padding: const EdgeInsets.all(5),
           child: ListView.builder(
             itemBuilder: (BuildContext context, int index) {
-              final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+              final item = component.items[index];
               return Text(
                 item.title,
               );
@@ -148,7 +148,7 @@ suite("ItemBuilder Tests", function () {
         WidgetHelpers.ifTrue(trueValue,
           () => ListView.builder(
             itemBuilder: (BuildContext context, int index) {
-              final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+              final item = component.items[index];
               return Text(
                 item.title,
               );
@@ -175,7 +175,7 @@ suite("ItemBuilder Tests", function () {
             padding: const EdgeInsets.all(5),
             child: ListView.builder(
               itemBuilder: (BuildContext context, int index) {
-                final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+                final item = component.items[index];
                 return Text(
                   item.title,
                 );
@@ -203,7 +203,7 @@ suite("ItemBuilder Tests", function () {
             padding: const EdgeInsets.all(5),
             child: ListView.builder(
               itemBuilder: (BuildContext context, int index) {
-                final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+                final item = component.items[index];
                 return Text(
                   item.title,
                 );
@@ -230,7 +230,7 @@ suite("ItemBuilder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (BuildContext context, int index) {
-            final ItemModel item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final ItemModel item = component.items[index];
             return Text(
               item.title,
             );
@@ -257,7 +257,7 @@ suite("ItemBuilder Tests", function () {
             padding: const EdgeInsets.all(5),
             child: ListView.builder(
               itemBuilder: (BuildContext context, int index) {
-                final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+                final item = component.items[index];
                 return Text(
                   item.title,
                 );

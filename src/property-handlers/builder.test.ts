@@ -178,7 +178,7 @@ suite("Builder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (context, myIndex) {
-            final item = items == null || items.length <= myIndex || items.length == 0 ? null : items[myIndex];
+            final item = items[myIndex];
             return PopupMenuItem(
               child: Text(
                 'text',
@@ -215,7 +215,7 @@ suite("Builder Tests", function () {
             }
             return ListView.builder(
               itemBuilder: (context, index) {
-                final item = itemsStreamValue == null || itemsStreamValue.length <= index || itemsStreamValue.length == 0 ? null : itemsStreamValue[index];
+                final item = itemsStreamValue[index];
                 return PopupMenuItem(
                   child: Text(
                     'text',
@@ -248,13 +248,13 @@ suite("Builder Tests", function () {
         ListView.separated(
           itemCount: component.items.length,
           itemBuilder: (context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             return Text(
               item.title,
             );
           },
           separatorBuilder: (context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             return Divider(
     
             );
@@ -291,13 +291,13 @@ suite("Builder Tests", function () {
             return ListView.separated(
               itemCount: component.items.length,
               itemBuilder: (context, index) {
-                final item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final item = componentItemsValue[index];
                 return Text(
                   item.title,
                 );
               },
               separatorBuilder: (context, index) {
-                final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+                final item = component.items[index];
                 return Divider(
     
                 );
@@ -336,13 +336,13 @@ suite("Builder Tests", function () {
             return ListView.separated(
               itemCount: component.items.length,
               itemBuilder: (context, index) {
-                final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+                final item = component.items[index];
                 return Text(
                   item.title,
                 );
               },
               separatorBuilder: (context, index) {
-                final item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final item = componentItemsValue[index];
                 return Divider(
     
                 );
@@ -381,13 +381,13 @@ suite("Builder Tests", function () {
             return ListView.separated(
               itemCount: component.items.length,
               itemBuilder: (context, index) {
-                final ItemModel item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final ItemModel item = componentItemsValue[index];
                 return Text(
                   item.title,
                 );
               },
               separatorBuilder: (context, index) {
-                final item = componentItemsValue == null || componentItemsValue.length <= index || componentItemsValue.length == 0 ? null : componentItemsValue[index];
+                final item = componentItemsValue[index];
                 return Divider(
     
                 );
@@ -415,7 +415,7 @@ suite("Builder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             if (item != null) {
               return Padding(
                 padding: const EdgeInsets.all(11),
@@ -454,7 +454,7 @@ suite("Builder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             return Padding(
               padding: const EdgeInsets.all(11),
               child: Text(
@@ -483,7 +483,7 @@ suite("Builder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             return [
               Padding(
                 padding: const EdgeInsets.all(11),
@@ -519,7 +519,7 @@ suite("Builder Tests", function () {
         const expected = `
         ListView.builder(
           itemBuilder: (BuildContext context, index) {
-            final item = component.items == null || component.items.length <= index || component.items.length == 0 ? null : component.items[index];
+            final item = component.items[index];
             return Text(
               item.title,
             );
@@ -568,7 +568,7 @@ suite("Builder Tests", function () {
         const expected = `
         SliverChildBuilderDelegate(
           (context, index) {
-            final item = ctrl.products == null || ctrl.products.length <= index || ctrl.products.length == 0 ? null : ctrl.products[index];
+            final item = ctrl.products[index];
             return Container(
     
             );

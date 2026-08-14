@@ -24,9 +24,11 @@ export class ClassCodeGenerator {
         const rootChildCode = this.widgetGenerator.generateWidgetCode(rootWidget.rootChild, 0);
         const widgetName = rootWidget.type;
         const hasController = !!rootWidget.controller;
-        // todo
-        const isStateful = true;
-        // const isStateful = rootWidget.stateful;
+
+        const hasNamedAnimation = vars.some(v => v.type === 'GlobalKey<AnimationBuilderState>');
+        if (hasNamedAnimation && !hasController) {
+            throw new Error(':: apply-animation with a "name" attribute requires a controller on the root widget (e.g. controller="MyController").');
+        }
 
         // route aware
         let routeAwareStateMethods = '';
@@ -68,6 +70,25 @@ export class ClassCodeGenerator {
   }`;
         }
 
+        // A widget needs a StatefulWidget when it has a controller, declared
+        // params (accessed as `widget.xxx`), state variables, providers,
+        // forms, mixins or route awareness, or when the XML references
+        // `widget.xxx` (only available in a State). Simple pages without any
+        // of those are generated as StatelessWidget.
+        const usesWidgetPrefix = /widget\./.test(rootChildCode);
+        const isStateful =
+            rootWidget.stateful ||
+            hasController ||
+            rootWidget.params.length > 0 ||
+            controllers.length > 0 ||
+            vars.length > 0 ||
+            rootWidget.vars.length > 0 ||
+            rootWidget.providers.length > 0 ||
+            formControls.length > 0 ||
+            routeAware ||
+            mixins.length > 0 ||
+            usesWidgetPrefix;
+
 
         //
         // mixins
@@ -84,9 +105,9 @@ export class ClassCodeGenerator {
 `
   @override
   Widget build(BuildContext context) {
-    final _pipeProvider = Provider.of<PipeProvider>(context);
-    final __widget = ${rootChildCode};
-    return __widget;
+    final pipeProvider = context.watch<PipeProvider>();
+    final layout = ${rootChildCode};
+    return layout;
   }`;
 
 
@@ -94,11 +115,22 @@ export class ClassCodeGenerator {
           rootWidget.imports.push({ path: `${rootWidget.controllerPath || controllerPath}` });
         }
         rootWidget.imports.push({ path: `package:flutter/material.dart` });
-        rootWidget.imports.push({ path: `package:flutter_xmllayout_helpers/flutter_xmllayout_helpers.dart` });
+        rootWidget.imports.push({ path: `package:flutter_xml_layout_helpers/headers.dart` });
         rootWidget.imports.push({ path: `package:provider/provider.dart` });
 
+        // Generated code can trip analyzer lints that don't affect behavior
+        // (e.g. a `!= null` after the stream pipe already null-guards the
+        // value). Keep generated files warning-free with a curated ignore
+        // header, matching common codegen practice.
+        const ignoreHeader =
+            '// ignore_for_file: unnecessary_null_comparison, prefer_const_constructors, ' +
+            'prefer_const_literals_to_create_immutables, sized_box_for_whitespace, ' +
+            'prefer_interpolation_to_compose_strings, use_key_in_widget_constructors, ' +
+            'library_private_types_in_public_api, unnecessary_cast, ' +
+            'unnecessary_type_check, dead_code, dead_null_aware_expression, ' +
+            'unnecessary_non_null_assertion\n\n';
 
-        let code = `${rootWidget.imports.map(a => `import '${a.path}';`).join('\n')}`;
+        let code = ignoreHeader + rootWidget.imports.map(a => `import '${a.path}';`).join('\n');
 
         // 
         // widget state
@@ -123,7 +155,7 @@ export class ClassCodeGenerator {
     private createControllerBase(rootWidget: RootWidgetModel, controllers: VariableModel[], vars: VariableModel[], formControls: FormControlModel[], routeAwareControllerMethods: string) {
         const varsLines: string[] = [
             ...controllers.filter(a => !a.isPrivate && !a.skipGenerate).map(a => this.createControllerVar(a)),
-            ...vars.map(a => a.type ? `final ${a.name} = new ${a.type}();` : a.name),
+            ...vars.map(a => a.type ? `final ${a.name} = ${a.type}();` : a.name),
             ...rootWidget.vars.map(a => this.createControllerVar(a)),
             ...rootWidget.params.filter(a => !!a.name).map(a => this.createControllerVar(a)),
             ...rootWidget.providers.map(a => this.createControllerVar(a))
@@ -136,7 +168,7 @@ export class ClassCodeGenerator {
         let formCode = '';
         if (formControls.length) {
           formCode = `
-  Map<String, dynamic> _attachedControllers = Map();
+  Map<String, dynamic> _attachedControllers = <String, dynamic>{};
 
   dynamic _attachController(FormGroup formGroup, String controlName, controllerBuilder) {
     if (_attachedControllers.containsKey(controlName)) {
@@ -204,21 +236,21 @@ class ${widgetName} extends StatelessWidget${mixinsCode} {
     private createStatefulWidget(widgetName: string, mixinsCode: string, rootWidget: RootWidgetModel, controllers: VariableModel[], routeAware: boolean, routeAwareStateMethods: string, buildMethodContent: string, hasController: boolean, formControls: FormControlModel[]) {
         const stateVarsDeclaration: string[] = [
             ...(hasController ? [`late ${rootWidget.controller} ctrl;`] : []),
-            ...controllers.filter(a => !a.skipGenerate).map(a => a.isPrivate ? `final ${a.name} = new ${a.type}();` : `${a.type} ${a.name};`),
+            ...controllers.filter(a => !a.skipGenerate).map(a => a.isPrivate ? `final ${a.name} = ${a.type}();` : `${a.type} ${a.name};`),
             ...rootWidget.providers.map(a => `${a.type} ${a.name};`),
             ...rootWidget.vars.map(a => `late ${a.type} ${a.name};`),
             ...(routeAware ? [`late RouteObserver<Route> _routeObserver;`] : [])
         ];
         const stateVarsInit: string[] = [
-            ...(hasController ? [`ctrl = new ${rootWidget.controller}();`] : []),
+            ...(hasController ? [`ctrl = ${rootWidget.controller}();`] : []),
             ...(hasController ? rootWidget.params.filter(a => !!a.name).map(a => `ctrl._${a.name} = widget.${a.name};`) : []),
-            ...controllers.filter(a => !a.isPrivate && !a.skipGenerate).map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value ? a.value : `new ${a.type}()`};`),
+            ...controllers.filter(a => !a.isPrivate && !a.skipGenerate).map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value ? a.value : `${a.type}()`};`),
             ...rootWidget.vars.map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value};`),
             ...(hasController ? [`WidgetsBinding.instance.addPostFrameCallback((_) => mounted ? ctrl.afterFirstBuild(context) : null);`] : [])
         ];
         const stateVarsUpdate: string[] = [
           ...(hasController ? rootWidget.params.filter(a => !!a.name).map(a => `ctrl._${a.name} = widget.${a.name};`) : []),
-          ...controllers.filter(a => !a.isPrivate && !a.skipGenerate).map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value ? a.value : `new ${a.type}()`};`),
+          ...controllers.filter(a => !a.isPrivate && !a.skipGenerate).map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value ? a.value : `${a.type}()`};`),
           ...rootWidget.vars.map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = ${a.value};`),
         ];
         const superParams = rootWidget.params
@@ -258,8 +290,8 @@ class _${widgetName}State extends State<${widgetName}>${mixinsCode} {
 
   @override
   void didChangeDependencies() {
-    super.didChangeDependencies();${routeAware ? `\n    _routeObserver = Provider.of<RouteObserver<Route>>(context)..subscribe(this, ModalRoute.of(context) as Route);` : ''
-  }${(rootWidget.providers.length ? '\n    ' : '') + rootWidget.providers.map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = Provider.of<${a.type}>(context);`).join('\n    ')
+    super.didChangeDependencies();${routeAware ? `\n    _routeObserver = context.watch<RouteObserver<Route>>()..subscribe(this, ModalRoute.of(context) as Route);` : ''
+  }${(rootWidget.providers.length ? '\n    ' : '') + rootWidget.providers.map(a => `${hasController ? `ctrl._${a.name} = `: ''}${a.name} = context.watch<${a.type}>();`).join('\n    ')
   }${hasController ? `\n    ctrl._load(context);` : ''}
   }
 

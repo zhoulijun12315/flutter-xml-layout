@@ -121,6 +121,17 @@ FutureBuilder(
 
 ***NOTE*** You can't use `stream`, `behavior` or `future` pipe for a property of non-widget element (e.g. InputDecoration), because `StreamBuilder` and `FutureBuilder` can only returns of Widget type.
 
+**Null behavior:** by default a `stream`/`behavior`/`future` pipe wraps the
+widget in a builder that returns `Container(width: 0, height: 0)` while the
+value is `null`. If the expression itself already handles null — `?? fallback`,
+`!= null`, `== null` — the generated null guard is **skipped** so your own
+handling applies (for any widget type, not just `Text`):
+
+```XML
+<Text text="(ctrl.timeRemainingText | behavior) ?? ''" />
+<!-- renders the Text with '' while the value is null (no hidden container) -->
+```
+
 
 ### 4. widthPercent & heightPercent
 
@@ -143,3 +154,80 @@ You also can use pipes chaining:
 
 ***NOTE*** You can't use multi-chained stream or future e.g. `text="streamThatReturnsStream | stream | stream"` or `text="textStream | stream | anotherPipe | stream"`. only one stream/future per chain, but you can, of course, use grouped pipes and each group has one stream or future.
 
+### 5. Watching multiple streams (reactivity)
+
+**Preferred:** use the `:watch` wrapper — it rebuilds the subtree when ANY of
+the listed streams emits, with no condition attached:
+
+```XML
+<Container :watch="ctrl.userSubject, IRAService.shared.accountStatuses">
+  <!-- rebuilt whenever either stream emits -->
+</Container>
+```
+
+To rebuild part of the UI when **any** of several streams changes, combine
+the streams in the controller and expose a single bool stream:
+
+```dart
+// controller
+late final Stream<bool> hasUserOrStatus = Rx.combineLatest2(
+  userSubject,
+  IRAService.shared.accountStatuses,
+  (user, statuses) => user != null || statuses != null,
+);
+```
+
+```XML
+<Container :if="ctrl.hasUserOrStatus | behavior">
+  <!-- rebuilds whenever either stream emits -->
+</Container>
+```
+
+Notes:
+
+- Multiple `| behavior` pipes in one condition (e.g.
+  `(a | behavior) != null || (b | behavior) != null`) each generate a nested
+  `StreamBuilder` with its own null guard. The render condition therefore
+  behaves like **AND** (all values must be non-null), and later `!= null`
+  checks become dead code (suppressed by the generated ignore header). If you
+  need OR-style rendering, combine the streams as shown above.
+- The nested builders still refresh the subtree whenever either stream emits,
+  so the "watch multiple streams" behavior itself works either way — the
+  combined-stream pattern just makes the condition explicit and lint-clean.
+- `Rx.combineLatest2` comes from `rxdart`; declare it in the app's own
+  `pubspec.yaml` (the helpers package no longer depends on it).
+
+### 6. Null handling with pipes: fallback vs hide
+
+When a pipe (`| stream`, `| behavior`, `| future`) resolves to `null`, the
+generated behavior depends on whether the expression handles null explicitly:
+
+| Expression | Value is null | Value is non-null |
+|---|---|---|
+| `(ctrl.x \| behavior) ?? fallback` | renders the original widget with `fallback` (text / color / size …) | renders the original value |
+| `ctrl.x \| behavior` (no fallback) | renders `Container(width: 0, height: 0)` (widget hidden) | renders the original value |
+| `ctrl.x` (no pipe) | no `Container` is involved — null goes straight to the property (`Text(text: null)` renders empty; non-nullable params are a compile error) | renders the original value |
+
+The generator skips its built-in null guard when the expression already
+contains `??`, `!= null` or `== null`, so your explicit null handling is what
+runs — and it does not produce dead-code warnings.
+
+**Recommended rule of thumb:**
+
+1. **Widget should always exist, with a placeholder when empty** → use
+   `?? fallback`. The widget type stays constant in the tree, so when the
+   value flips between null and non-null, Flutter only updates properties
+   (same `runtimeType` → element reused) instead of tearing down and rebuilding
+   the subtree (Text ↔ Container swap). This is both more stable and cheaper
+   for toggling states like loading → loaded.
+2. **Widget should not exist at all when the condition is false** → use
+   `:if` (real show/hide). A fallback value renders something visible or
+   tappable (e.g. a sized Container with a fallback color), which is not the
+   same as hiding.
+3. **Lightweight optional values** (e.g. plain text where an empty render is
+   fine) → either is acceptable; the default guard (`Container(width: 0,
+   height: 0)`) is fine when a truly empty render is equivalent.
+
+Note: a fallback only helps when the property accepts the fallback's type —
+`StyledText` (package `styled_text`) requires a non-null `String`, so
+`(ctrl.x | behavior) ?? ''` is mandatory there (a pipe value is `String?`).

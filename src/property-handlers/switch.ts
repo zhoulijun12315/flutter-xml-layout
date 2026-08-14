@@ -103,7 +103,7 @@ export class SwitchHandler extends CustomPropertyHandler {
             casesWidgets.filter(a => !!a).forEach(w => {
                 const caseProp = w.properties.filter(a => a.name === ':switchCase')[0];
                 if (caseProp) {
-                    cases += `\n${tabs}    new SwitchCase(${caseProp.value}, \n${tabs}      () => ${generateChildWidgetCode(w, tabsLevel + 3)}\n${tabs}    ),`;
+                    cases += `\n${tabs}    SwitchCase(${caseProp.value}, \n${tabs}      () => ${generateChildWidgetCode(w, tabsLevel + 3)}\n${tabs}    ),`;
                 }
             });
         }

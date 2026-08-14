@@ -1,67 +1,53 @@
-import * as fs from 'fs';
-import * as mkdirp from 'mkdirp';
 import * as path from "path";
 import * as vscode from "vscode";
+import { spawn } from 'child_process';
 
-import { Config, ConfigValueTransformer } from "./models/config";
-import { IValueTransformer, ValueTransformersProvider } from "./providers/value-transformers-provider";
+import { Config } from "./models/config";
+import { GenError, GenResult, XmlLayoutGenerator } from "./core/generate";
 import { registerBuiltInPropertyHandlers, registerBuiltInValueTransformers } from "./builtin-handlers";
-
 import { ChildWrapperPropertyHandler } from "./property-handlers/child-wrapper-property";
-import { ClassCodeGenerator } from "./generators/class-generator";
+import { WrapperPropertyHandler } from "./property-handlers/wrapper-property";
 import { ColorValueTransformer } from "./value-transformers/color";
 import { EdgeInsetsValueTransformer } from "./value-transformers/edge-insets";
 import { EnumValueTransformer } from "./value-transformers/enum";
-import { LocalizationGenerator } from "./generators/localization-generator";
-import { ParseXml } from "./parser/parser";
 import { PipeValueResolver } from "./resolvers/pipe-value-resolver";
 import { PropertyHandlerProvider } from "./providers/property-handler-provider";
 import { PropertyResolver } from "./resolvers/property-resolver";
-import { WidgetCodeGenerator } from "./generators/widget-generator";
-import { WidgetResolver } from "./resolvers/widget-resolver";
-import { WrapperPropertyHandler } from "./property-handlers/wrapper-property";
-import { denodeify } from 'q';
+import { ValueTransformersProvider } from "./providers/value-transformers-provider";
 import { insertAutoCloseTag } from "./autoclose/autoclose";
-
-const mkdir = denodeify(mkdirp);
-const writeFile = denodeify(fs.writeFile);
-const readFile = denodeify(fs.readFile);
-const readDir = denodeify(fs.readdir);
-// const exists = denodeify(fs.exists);
-const existsSync = fs.existsSync;
 
 export default class Manager {
     public readonly propertyResolver: PropertyResolver;
-    private readonly pipeValueResolver: PipeValueResolver;
-    private readonly resolver: WidgetResolver;
     public readonly propertyHandlersProvider: PropertyHandlerProvider;
+    private readonly pipeValueResolver: PipeValueResolver;
     private readonly valueTransformersProvider: ValueTransformersProvider;
-    private readonly classGenerator: ClassCodeGenerator;
+    private generator: XmlLayoutGenerator;
     private readonly output: vscode.OutputChannel;
+    private config: Config;
 
-
-    constructor(config: Config, 
+    constructor(config: Config,
                 private readonly diagnostics: vscode.DiagnosticCollection) {
+        this.config = config;
         this.pipeValueResolver = new PipeValueResolver();
         this.propertyHandlersProvider = new PropertyHandlerProvider();
         this.propertyResolver = new PropertyResolver(config, this.propertyHandlersProvider, this.pipeValueResolver);
         this.valueTransformersProvider = new ValueTransformersProvider();
-        this.resolver = new WidgetResolver(config, this.propertyHandlersProvider, this.propertyResolver);
-        const widgetGenerator = new WidgetCodeGenerator(this.propertyHandlersProvider);
-        this.classGenerator = new ClassCodeGenerator(widgetGenerator);
-        
+
         registerBuiltInPropertyHandlers(this.propertyHandlersProvider, this.propertyResolver);
         registerBuiltInValueTransformers(this.valueTransformersProvider);
         this.applyConfig(config);
+        this.rebuildGenerator();
 
         this.output = vscode.window.createOutputChannel('Flutter XML Layout');
 
         vscode.workspace.onDidSaveTextDocument(async (document) => {
             if (this.isI18nJsonFile(document.languageId)) {
-                const isValidOptionsFile = path.join((vscode.workspace.workspaceFolders as vscode.WorkspaceFolder[])[0].uri.fsPath, 'fxmllayout.json') === document.fileName;
+                const isValidOptionsFile = path.join(this.getRootPath(), 'fxmllayout.json') === document.fileName;
                 if (isValidOptionsFile) {
                     const newConfig = JSON.parse(document.getText());
+                    this.config = newConfig;
                     this.applyConfig(newConfig, config);
+                    this.rebuildGenerator();
                     await this.regenerateAll();
                 }
                 else {
@@ -72,13 +58,22 @@ export default class Manager {
                 await this.generateWidgetDartFile(document.fileName, document.getText());
             }
         });
-        
+
         // autoclose tags
         vscode.workspace.onDidChangeTextDocument(event => {
             if (this.isFxmlFile(event.document.languageId)) {
                 insertAutoCloseTag(event);
             }
         });
+    }
+
+    private getRootPath(): string {
+        const folders = vscode.workspace.workspaceFolders;
+        return folders && folders.length ? folders[0].uri.fsPath : process.cwd();
+    }
+
+    private rebuildGenerator(): void {
+        this.generator = new XmlLayoutGenerator(this.getRootPath(), this.config);
     }
 
     private applyConfig(config: Config, original?: Config) {
@@ -93,8 +88,15 @@ export default class Manager {
                 .filter(p => p.properties[0] && p.widget)
                 .forEach(p => {
                     this.propertyHandlersProvider.register(
-                        p.properties.map(a => a.handler), 
-                        new WrapperPropertyHandler(this.propertyResolver, p.properties, p.widget, p.defaults, p.priority !== undefined && p.priority !== null ? p.priority : 100));
+                        p.properties.map(a => a.handler),
+                        new WrapperPropertyHandler(
+                            this.propertyResolver,
+                            p.properties,
+                            p.widget,
+                            p.defaults,
+                            p.priority !== undefined && p.priority !== null ? p.priority : 100,
+                        ),
+                    );
                 });
         }
 
@@ -110,18 +112,18 @@ export default class Manager {
                 .forEach(p => {
                     this.propertyHandlersProvider.register(
                         p.properties.map(a => a.handler),
-                        new ChildWrapperPropertyHandler(this.propertyResolver, p.properties, p.widget, p.defaults, p.priority !== undefined && p.priority !== null ? p.priority : 100));
+                        new ChildWrapperPropertyHandler(
+                            this.propertyResolver,
+                            p.properties,
+                            p.widget,
+                            p.defaults,
+                            p.priority !== undefined && p.priority !== null ? p.priority : 100,
+                        ),
+                    );
                 });
         }
 
         if (config.valueTransformers) {
-            if (original) {
-                if (original.valueTransformers) {
-                    // todo
-                    // const removed = original.valueTransformers.filter(a => (config.valueTransformers as any[]).filter(b => b.name === a.name).length);
-                    // removed.forEach(a => this.propertyHandlerProvider.remove(a.name));
-                }
-            }
             config.valueTransformers.filter(p => p.properties && p.properties.length && p.type).forEach(p => {
                 const transformer = this.createValueTransformer(p);
                 if (transformer) {
@@ -138,107 +140,86 @@ export default class Manager {
         }
     }
 
-    private createValueTransformer(p: ConfigValueTransformer): IValueTransformer | null {
+    private createValueTransformer(p: Config['valueTransformers'][0]) {
         switch (p.type) {
-            case 'enum': 
+            case 'enum':
                 if (p.widgetEnumMap) {
-                    // Use widget-specific enum mapping
                     return new EnumValueTransformer(p.enumType || '', p.widgetEnumMap);
-                } else if (p.enumType) {
-                    // Use single enum type for all widgets
+                }
+                if (p.enumType) {
                     return new EnumValueTransformer(p.enumType);
                 }
                 return null;
-            case 'color': return new ColorValueTransformer();
-            case 'edgeInsets': return new EdgeInsetsValueTransformer();
-            default: return null;
+            case 'color':
+                return new ColorValueTransformer();
+            case 'edgeInsets':
+                return new EdgeInsetsValueTransformer();
+            default:
+                return null;
         }
     }
 
     private isFxmlFile(id: string): boolean {
-        return /*id === 'fxml' ||*/ id === 'xml';
+        return id === 'xml';
+    }
+
+    private isI18nJsonFile(id: string): boolean {
+        return id === 'json';
     }
 
     async generateWidgetDartFile(docName: string, xml: string, notifyUpdate = true) {
-        const rootPath = (vscode.workspace.workspaceFolders as any[])[0].uri.fsPath;
+        const rootPath = this.getRootPath();
         if (!docName.startsWith(path.join(rootPath, 'lib'))) {
             return;
         }
 
-        const filePath = docName.substring(0, docName.lastIndexOf('.'));
-        const controllerFilePath = filePath + '.ctrl.dart';
-        const controllerFileName = path.parse(controllerFilePath).base;
-        
-        let layoutDart, rootWidget;
-
-        const fileUri = vscode.Uri.file(filePath + '.xml');
+        const fileUri = vscode.Uri.file(docName);
         this.diagnostics.set(fileUri, []);
-        
-        try {
-            const parser: ParseXml = new ParseXml();
-            const xmlDoc = parser.parse(xml);
-            rootWidget = this.resolver.resolve(xmlDoc);
-            layoutDart = this.classGenerator.generate(rootWidget, controllerFileName);
-        }
-        catch (ex) {
-            const diagnostic = this.getExceptionDiagnostics((ex as any).message);
+
+        const result: GenResult = { ok: true, generated: [], i18n: [], errors: [], warnings: [] };
+        this.generator.generateXmlFile(docName, result);
+
+        if (result.errors.length) {
+            const err = result.errors[0];
+            const diagnostic = this.getExceptionDiagnostics(err);
             if (diagnostic) {
                 this.diagnostics.set(fileUri, [diagnostic]);
             }
-            const customMessage = this.getCustomErrorMessage((ex as any).message);
+            const customMessage = this.getCustomErrorMessage(err.message);
             if (customMessage) {
                 vscode.window.showErrorMessage(customMessage);
                 this.output.appendLine(customMessage);
                 return;
             }
-            else {
-                vscode.window.showErrorMessage('Please check the XML structure.');
-                this.output.appendLine('Error parsing XML file.');
-                throw ex;
-            }
-        }
-
-        if (!rootWidget) {
+            vscode.window.showErrorMessage('Please check the XML structure.');
+            this.output.appendLine(`Error parsing XML file: ${err.message}`);
             return;
         }
-        
-        const layoutFileName = docName + '.dart';
-        await writeFile(layoutFileName, layoutDart);
-        
-        try {
-            if (rootWidget.controller && !existsSync(controllerFilePath)) {
-                const fileName = path.parse(filePath).base;
-                const controllerDart = this.classGenerator.generateControllerFile(fileName, rootWidget);
-                if (!!controllerDart) {
-                    await writeFile(controllerFilePath, controllerDart);
-                }
-            }
-        }
-        catch {
+
+        if (this.config.formatOnSave !== false) {
+            const layoutFile = docName + '.dart';
+            spawn('dart', ['format', layoutFile], { stdio: 'ignore' })
+                .on('error', () => { /* dart not installed — skip formatting */ });
         }
 
         this.output.appendLine('XML converted to Dart code.');
-
         if (notifyUpdate) {
             await this.notifyUpdate();
         }
     }
-    
-    private getExceptionDiagnostics(message: string): vscode.Diagnostic {
-        const lineIndex = message.indexOf('line ');
-        const colIndex = message.indexOf('column ');
-        if (lineIndex !== -1 && colIndex !== -1) {
-            const line = +message.substring(lineIndex + 5, message.indexOf(',', lineIndex)) - 1;
-            const col = +message.substring(colIndex + 7, message.indexOf(')', colIndex)) - 1;
-            const position = new vscode.Position(line, col);
+
+    private getExceptionDiagnostics(err: GenError): vscode.Diagnostic | null {
+        if (err.line !== undefined && err.column !== undefined) {
+            const position = new vscode.Position(Math.max(err.line - 1, 0), Math.max(err.column - 1, 0));
             return new vscode.Diagnostic(
-                new vscode.Range(position, position.translate({ characterDelta: 1000 })), 
-                message.substring(0, lineIndex - 2));
+                new vscode.Range(position, position.translate({ characterDelta: 1000 })),
+                err.message.split('\n')[0],
+            );
         }
         return null;
     }
 
-    private getCustomErrorMessage(error: string): string {
+    private getCustomErrorMessage(error: string): string | null {
         if (error.startsWith('::')) {
             return error.substring(2);
         }
@@ -249,63 +230,30 @@ export default class Manager {
     }
 
     async generateWidgetDartFiles() {
-        const files = await vscode.workspace.findFiles('**/*.xml');
-        for (const file of files) {
-            const xml = await readFile(file.fsPath, 'utf8') as string;
-            await this.generateWidgetDartFile(file.fsPath, xml, false);
+        const result = this.generator.generateAll();
+        for (const err of result.errors) {
+            this.output.appendLine(`ERROR ${err.file}: ${err.message}`);
         }
         await this.notifyUpdate();
+    }
+
+    async generateLocalizationFiles() {
+        const result: GenResult = { ok: true, generated: [], i18n: [], errors: [], warnings: [] };
+        this.generator.generateLocalizationFiles(result);
+        for (const err of result.errors) {
+            this.output.appendLine(`ERROR ${err.file}: ${err.message}`);
+        }
+    }
+
+    async regenerateAll() {
+        await this.generateWidgetDartFiles();
+        await this.generateLocalizationFiles();
+        this.output.appendLine('Re-generate operation succeeded.');
     }
 
     private async notifyUpdate() {
         if (vscode.debug.activeDebugSession) {
             await vscode.commands.executeCommand('flutter.hotReload');
         }
-    }
-
-    private isI18nJsonFile(id: string): boolean {
-        return id === 'json';
-    }
-
-    async generateLocalizationFiles() {
-        const jsonDirPath = path.join((vscode.workspace.workspaceFolders as vscode.WorkspaceFolder[])[0].uri.fsPath, 'lib', 'i18n');
-        if (!existsSync(jsonDirPath)) {
-            return;
-        }
-        
-        const langs: any = {};
-
-        // read all other lang.json files then add them to langs[langCode] = json;
-        let files: any = await readDir(jsonDirPath);
-        files = files.filter((f: string) => f.endsWith('.json'));
-        for (const file of files) {
-            const code = file.substring(0, file.lastIndexOf('.'));
-            const json = await readFile(path.join(jsonDirPath, file), 'utf8');
-            langs[code] = json;
-        }
-
-        // generate files
-        const genDirPath = path.join(jsonDirPath, 'gen');
-        const localizationFilePath = path.join(genDirPath, 'localizations.dart');
-        
-        await mkdir(genDirPath);
-
-        const generator = new LocalizationGenerator();
-        const localizationCode = generator.generateLocalization(langs);
-        await writeFile(localizationFilePath, localizationCode);
-        
-        // generated if not exists
-        const delegateFilePath = path.join(genDirPath, 'delegate.dart');
-        // if (!existsSync(delegateFilePath)) {
-            const supportedLangs: string[] = Object.keys(langs);
-            const delegateCode = generator.generateDelegate(supportedLangs);
-            await writeFile(delegateFilePath, delegateCode);
-        // }
-    }
-
-    async regenerateAll() {
-        await this.generateWidgetDartFiles();
-		await this.generateLocalizationFiles();
-        this.output.appendLine('Re-generate operation succeeded.');
     }
 }

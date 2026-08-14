@@ -35,6 +35,12 @@ export interface WidgetModel {
     formControls: FormControlModel[];
 
     properties: PropertyModel[];
+    /**
+     * Whether this StreamBuilder/FutureBuilder null-guards its value before
+     * using it (used by duplicate-builder removal to avoid merging a guarded
+     * usage with an unguarded one).
+     */
+    addNullChecking?: boolean;
     
     wrappedWidgets: WidgetModel[];
 

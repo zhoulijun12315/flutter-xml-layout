@@ -17,7 +17,7 @@ suite("Forms", function () {
             final ctrlLoginFormGroupSubmitEnabledStreamValue = ctrlLoginFormGroupSubmitEnabledStreamSnapshot.data;
             return Disable(
               event: ctrl.loginFormGroup.submit,
-              value: !(ctrlLoginFormGroupSubmitEnabledStreamValue),
+              value: !((ctrlLoginFormGroupSubmitEnabledStreamValue) == true),
               builder: (BuildContext context, event) {
                 return ProgressButton(
                   onPressed: event,
@@ -59,7 +59,7 @@ suite("Forms", function () {
                 final ctrlLoginFormGroupSubmitEnabledStreamValue = ctrlLoginFormGroupSubmitEnabledStreamSnapshot.data;
                 return Disable(
                   event: ctrl.loginFormGroup.submit,
-                  value: !(ctrlLoginFormGroupSubmitEnabledStreamValue),
+                  value: !((ctrlLoginFormGroupSubmitEnabledStreamValue) == true),
                   builder: (BuildContext context, event) {
                     return Padding(
                       padding: const EdgeInsets.all(0),

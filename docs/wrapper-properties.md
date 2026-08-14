@@ -1,5 +1,33 @@
 
 # Wrapper properties
+
+### 0. `:watch` (multi-stream reactivity)
+
+`<Container :watch="ctrl.a, IRAService.shared.b, ctrl.c">` rebuilds the wrapped
+subtree whenever **any** of the listed streams emits — with no render
+condition attached (unlike `| behavior` pipes, which null-guard each value).
+This is the recommended way to "refresh this UI when any of these streams
+changes":
+
+```XML
+<Container :watch="ctrl.userSubject, IRAService.shared.accountStatuses, ConfigService.shared.config">
+  <!-- always rendered; rebuilt when any stream emits -->
+</Container>
+```
+
+Generated code:
+
+```dart
+MultiStreamBuilder(
+  streams: [ctrl.userSubject, IRAService.shared.accountStatuses, ConfigService.shared.config],
+  builder: (BuildContext context, List<dynamic> values) {
+    return Container(...);
+  },
+)
+```
+
+`values` holds the latest value of each stream (null until a stream has
+emitted).
 Wrapper properties are an easy way to wrap any widget with another one, so instead of writting this:
 ```XML
 <Opacity opacity=".5">

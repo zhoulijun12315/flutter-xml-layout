@@ -198,10 +198,13 @@ export class BuilderHandler extends CustomPropertyHandler {
         // generate itemBuilder function
         let code = `${tabs}${data.builderName ? data.builderName + ': ' : ''}(${data.params || 'BuildContext context'}${data.params ? '' : (hasItemList ? `, ${indexName}` : '')}) {`;
 
-        // if (hasItemList && (!data.params || data.indexName)) {
         if (hasItemList) {
+            // Direct index access: the defensive null/out-of-range guard was
+            // dead code under null safety (itemCount keeps indices valid,
+            // stream sources are already null-guarded) and produced warnings
+            // (`null!` → null_check_always_fails).
             code += `
-${tabs}  final ${spaceAfter(data.typeName)}${data.itemName} = (${data.listValueVariableName} as dynamic) == null || ${data.listValueVariableName}.length <= ${indexName} || ${data.listValueVariableName}.length == 0 ? [] : ${data.listValueVariableName}[${indexName}];`;
+${tabs}  final ${spaceAfter(data.typeName)}${data.itemName} = ${data.listValueVariableName}[${indexName}];`;
         }
 
         if (ifWidgets && ifWidgets.length) {

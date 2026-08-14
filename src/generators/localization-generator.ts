@@ -28,15 +28,17 @@ class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
     
     generateLocalization(langs: { [name: string]: string }): string {
         const langsTranslation = this.generateLangsTranslation(langs);
-        let code = 
-`import 'package:flutter/widgets.dart';
+        let code =
+`// ignore_for_file: prefer_final_fields
+
+import 'package:flutter/widgets.dart';
 
 class AppLocalizations {
   AppLocalizations(this.locale);
 
   final Locale locale;
 
-  String getTranslation(String key) {
+  String? getTranslation(String key) {
     final lang = _localizedValues[locale.languageCode];
     if (lang != null) {
       return lang[key];
@@ -44,7 +46,7 @@ class AppLocalizations {
     return null;
   }
 
-  static AppLocalizations of(BuildContext context) {
+  static AppLocalizations? of(BuildContext context) {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
